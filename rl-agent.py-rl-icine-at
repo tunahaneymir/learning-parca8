@@ -1,0 +1,402 @@
+"""
+RL Agent (Simplified) - PPO-based Trading Agent
+
+NOTE: This is a SIMPLIFIED template for the RL Agent.
+Full implementation requires PyTorch and proper PPO implementation.
+
+State Space: ~40 features (PA signals, market context, performance, risk, emotional)
+Action Space: 4 actions (ENTER_FULL, ENTER_REDUCED, SKIP, WAIT)
+Algorithm: PPO (Proximal Policy Optimization)
+
+For production, integrate with:
+- stable-baselines3 (PPO implementation)
+- PyTorch (neural network)
+- Proper reward normalization
+"""
+
+from __future__ import annotations
+from typing import Dict, List, Optional, Tuple
+import numpy as np
+from dataclasses import dataclass
+
+
+@dataclass
+class RLConfig:
+    """RL Agent configuration"""
+    state_dim: int = 40
+    action_dim: int = 4
+    hidden_dim: int = 256
+    learning_rate: float = 3e-4
+    gamma: float = 0.99
+    epsilon: float = 0.2  # PPO clip
+    
+    # Training
+    batch_size: int = 128
+    epochs: int = 5
+    
+    # Exploration
+    exploration_rate: float = 0.2  # Initial
+    exploration_decay: float = 0.995
+    min_exploration: float = 0.05
+
+
+class RLAgent:
+    """
+    Simplified RL Agent for Trading
+    
+    PRODUCTION NOTE:
+    Replace this with proper PPO implementation using:
+    - stable-baselines3.PPO
+    - Custom policy network
+    - Proper experience replay
+    
+    Current: Template/placeholder with decision logic
+    """
+    
+    def __init__(self, config: Optional[RLConfig] = None):
+        self.config = config or RLConfig()
+        
+        # Placeholder for neural network
+        # In production: self.policy = PPOPolicy(...)
+        self.policy = None
+        
+        # Decision statistics
+        self.decision_counts = {
+            'ENTER_FULL': 0,
+            'ENTER_REDUCED': 0,
+            'SKIP': 0,
+            'WAIT': 0
+        }
+        
+        # Exploration
+        self.exploration_rate = self.config.exploration_rate
+        self.total_decisions = 0
+    
+    def decide(
+        self,
+        state: Dict,
+        gate_result: Dict,
+        deterministic: bool = False
+    ) -> Tuple[str, Dict]:
+        """
+        Make trading decision based on state
+        
+        Args:
+            state: Current state (40 features)
+            gate_result: Gate system result
+            deterministic: If True, use greedy policy
+            
+        Returns:
+            (action, decision_info)
+        """
+        
+        # Check if gates passed
+        if not gate_result.get('approved', False):
+            return 'SKIP', {
+                'reason': 'Gates not passed',
+                'gate_failed': gate_result.get('failed_at'),
+                'confidence': 0.0
+            }
+        
+        # Extract key features
+        setup_score = state.get('setup_score', 0)
+        confidence_level = state.get('confidence', 0.5)
+        stress_level = state.get('stress', 0.0)
+        pattern_win_rate = state.get('pattern_win_rate', 0.5)
+        
+        # SIMPLIFIED DECISION LOGIC
+        # Production: Replace with neural network forward pass
+        
+        # Calculate decision scores
+        scores = self._calculate_decision_scores(
+            setup_score,
+            confidence_level,
+            stress_level,
+            pattern_win_rate
+        )
+        
+        # Apply exploration
+        if not deterministic and np.random.random() < self.exploration_rate:
+            # Explore: random action
+            action = np.random.choice(['ENTER_FULL', 'ENTER_REDUCED', 'SKIP'])
+        else:
+            # Exploit: best action
+            action = max(scores, key=scores.get)
+        
+        # Update stats
+        self.decision_counts[action] += 1
+        self.total_decisions += 1
+        
+        # Decay exploration
+        self.exploration_rate = max(
+            self.config.min_exploration,
+            self.exploration_rate * self.config.exploration_decay
+        )
+        
+        # Calculate risk factor
+        risk_factor = self._calculate_risk_factor(action, confidence_level, stress_level)
+        
+        return action, {
+            'scores': scores,
+            'confidence': scores[action],
+            'risk_factor': risk_factor,
+            'exploration': self.exploration_rate,
+            'total_decisions': self.total_decisions
+        }
+    
+    def train(
+        self,
+        experiences: List,
+        epochs: int = 5,
+        batch_size: int = 128
+    ) -> Dict:
+        """
+        Train agent on experiences
+        
+        PRODUCTION: Implement proper PPO training
+        Current: Placeholder
+        """
+        
+        print(f"[RL TRAINING] Processing {len(experiences)} experiences...")
+        
+        # In production, implement:
+        # 1. Extract states, actions, rewards, next_states
+        # 2. Calculate advantages (GAE)
+        # 3. Update policy network (PPO objective)
+        # 4. Update value network
+        # 5. Track losses
+        
+        # Placeholder metrics
+        avg_reward = np.mean([exp.rl_reward for exp in experiences])
+        
+        return {
+            'loss': 0.1234,  # Placeholder
+            'avg_reward': avg_reward,
+            'experiences_used': len(experiences)
+        }
+    
+    def save_checkpoint(self, filepath: str):
+        """Save model checkpoint"""
+        # In production: torch.save(self.policy.state_dict(), filepath)
+        print(f"[RL] Checkpoint saved: {filepath}")
+    
+    def load_checkpoint(self, filepath: str):
+        """Load model checkpoint"""
+        # In production: self.policy.load_state_dict(torch.load(filepath))
+        print(f"[RL] Checkpoint loaded: {filepath}")
+    
+    # ════════════════════════════════════
+    # SIMPLIFIED DECISION LOGIC
+    # ════════════════════════════════════
+    
+    def _calculate_decision_scores(
+        self,
+        setup_score: float,
+        confidence: float,
+        stress: float,
+        pattern_win_rate: float
+    ) -> Dict[str, float]:
+        """
+        Calculate scores for each action
+        
+        PRODUCTION: Replace with neural network output
+        """
+        
+        # Base scores
+        scores = {
+            'ENTER_FULL': 0.0,
+            'ENTER_REDUCED': 0.0,
+            'SKIP': 0.0,
+            'WAIT': 0.0
+        }
+        
+        # Setup quality factor
+        if setup_score >= 80:
+            scores['ENTER_FULL'] += 0.4
+            scores['ENTER_REDUCED'] += 0.2
+        elif setup_score >= 65:
+            scores['ENTER_FULL'] += 0.2
+            scores['ENTER_REDUCED'] += 0.3
+        elif setup_score >= 50:
+            scores['ENTER_REDUCED'] += 0.2
+            scores['SKIP'] += 0.1
+        else:
+            scores['SKIP'] += 0.3
+        
+        # Confidence factor
+        if confidence > 0.7:
+            scores['ENTER_FULL'] += 0.3
+        elif confidence > 0.5:
+            scores['ENTER_REDUCED'] += 0.2
+        else:
+            scores['SKIP'] += 0.2
+        
+        # Stress factor (high stress → cautious)
+        if stress > 0.7:
+            scores['SKIP'] += 0.3
+            scores['ENTER_FULL'] -= 0.2
+        elif stress > 0.5:
+            scores['ENTER_REDUCED'] += 0.1
+            scores['ENTER_FULL'] -= 0.1
+        
+        # Pattern performance factor
+        if pattern_win_rate > 0.7:
+            scores['ENTER_FULL'] += 0.2
+        elif pattern_win_rate < 0.5:
+            scores['SKIP'] += 0.2
+        
+        # Normalize
+        total = sum(scores.values())
+        if total > 0:
+            scores = {k: v/total for k, v in scores.items()}
+        
+        return scores
+    
+    def _calculate_risk_factor(
+        self,
+        action: str,
+        confidence: float,
+        stress: float
+    ) -> float:
+        """Calculate risk factor for position sizing"""
+        
+        base_risk = 1.0
+        
+        if action == 'ENTER_FULL':
+            base_risk = 1.0
+        elif action == 'ENTER_REDUCED':
+            base_risk = 0.75
+        else:
+            return 0.0
+        
+        # Adjust for confidence
+        if confidence < 0.5:
+            base_risk *= 0.8
+        
+        # Adjust for stress
+        if stress > 0.6:
+            base_risk *= 0.7
+        
+        # Clip to valid range
+        return max(0.5, min(1.5, base_risk))
+    
+    def get_statistics(self) -> Dict:
+        """Get agent statistics"""
+        
+        total = self.total_decisions
+        if total == 0:
+            return {'total_decisions': 0}
+        
+        return {
+            'total_decisions': total,
+            'enter_full': self.decision_counts['ENTER_FULL'],
+            'enter_reduced': self.decision_counts['ENTER_REDUCED'],
+            'skip': self.decision_counts['SKIP'],
+            'wait': self.decision_counts['WAIT'],
+            'enter_rate': (self.decision_counts['ENTER_FULL'] + self.decision_counts['ENTER_REDUCED']) / total,
+            'skip_rate': self.decision_counts['SKIP'] / total,
+            'exploration_rate': self.exploration_rate
+        }
+
+
+# ════════════════════════════════════════
+# PRODUCTION IMPLEMENTATION NOTES
+# ════════════════════════════════════════
+
+"""
+For production implementation, use:
+
+```python
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv
+
+# Create custom trading environment
+class TradingEnv(gym.Env):
+    def __init__(self):
+        self.observation_space = gym.spaces.Box(
+            low=-np.inf, high=np.inf, shape=(40,)
+        )
+        self.action_space = gym.spaces.Discrete(4)
+    
+    def step(self, action):
+        # Execute trade decision
+        # Return: state, reward, done, info
+        pass
+    
+    def reset(self):
+        # Reset environment
+        pass
+
+# Create and train agent
+env = DummyVecEnv([lambda: TradingEnv()])
+model = PPO("MlpPolicy", env, verbose=1)
+model.learn(total_timesteps=100000)
+```
+
+Key components needed:
+1. Custom gym.Env for trading
+2. State preprocessing
+3. Reward shaping
+4. Experience replay buffer
+5. PPO training loop
+6. Model checkpointing
+7. Evaluation metrics
+"""
+
+
+# ════════════════════════════════════════
+# EXAMPLE USAGE
+# ════════════════════════════════════════
+
+def example_usage():
+    """Example RL agent usage"""
+    
+    agent = RLAgent()
+    
+    print("=" * 70)
+    print("RL AGENT (SIMPLIFIED) EXAMPLE")
+    print("=" * 70)
+    print()
+    
+    # Mock state
+    state = {
+        'setup_score': 75.0,
+        'confidence': 0.7,
+        'stress': 0.3,
+        'pattern_win_rate': 0.68,
+        # ... other 36 features
+    }
+    
+    gate_result = {
+        'approved': True,
+        'score': 75
+    }
+    
+    # Make decision
+    action, info = agent.decide(state, gate_result)
+    
+    print(f"Decision: {action}")
+    print(f"Scores: {info['scores']}")
+    print(f"Confidence: {info['confidence']:.3f}")
+    print(f"Risk Factor: {info['risk_factor']:.2f}")
+    print()
+    
+    # Statistics
+    for _ in range(100):
+        agent.decide(state, gate_result)
+    
+    stats = agent.get_statistics()
+    print("After 100 decisions:")
+    print(f"  Enter Rate: {stats['enter_rate']:.1%}")
+    print(f"  Skip Rate: {stats['skip_rate']:.1%}")
+    print(f"  Exploration: {stats['exploration_rate']:.3f}")
+    
+    print()
+    print("=" * 70)
+    print("NOTE: This is a SIMPLIFIED template")
+    print("Production needs proper PPO implementation")
+    print("=" * 70)
+
+
+if __name__ == "__main__":
+    example_usage()
